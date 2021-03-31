@@ -1,4 +1,4 @@
-import React, {useEffect, useMemo, useState} from 'react';
+import React, {useContext, useEffect, useMemo, useState} from 'react';
 import {
   View,
   StyleSheet,
@@ -6,6 +6,7 @@ import {
   Dimensions,
   StatusBar,
   Linking,
+  TouchableWithoutFeedback,
 } from 'react-native';
 import {
   Text,
@@ -15,10 +16,12 @@ import {
   Header,
   Image,
 } from 'react-native-elements';
-import {SvgXml} from 'react-native-svg';
 import {Stack} from '../components/spacing';
-import axios from 'axios';
+import CountryPicker, {Country} from 'react-native-country-picker-modal';
+
 import Icon from 'react-native-vector-icons/FontAwesome';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import CountryDataContext from '../context/country-data-context';
 
 const sh = Dimensions.get('window').height;
 const HomeScreen: React.FC = () => {
@@ -26,12 +29,25 @@ const HomeScreen: React.FC = () => {
     Linking.openURL('tel:/119');
   };
 
+  const [pickerVisible, setPickerVisible] = useState<boolean>(false);
+  const countryDataContext = useContext(CountryDataContext);
+  const [country, setCountry] = useState<Country | undefined>(
+    countryDataContext.country,
+  );
+
   const handleMessage = async () => {
     if (await Linking.canOpenURL('fb-messenger://')) {
       Linking.openURL(`fb-messenger://user-thread/nationalcancercentermgl`);
     } else {
       console.log('cant open messenger');
     }
+  };
+
+  const handleCountrySelect = (country: Country) => {
+    setCountry(country);
+    console.log(`refresh country data ${JSON.stringify(country)}`);
+    countryDataContext.refresh(country);
+    AsyncStorage.setItem('country', JSON.stringify(country));
   };
   return (
     <ScrollView style={styles.scroll}>
@@ -42,7 +58,6 @@ const HomeScreen: React.FC = () => {
           borderBottomColor: 'transparent',
         }}
         leftComponent={{icon: 'menu', color: '#fff'}}
-        rightComponent={{icon: 'menu', color: '#fff'}}
       />
       <ThemeProvider
         theme={{
@@ -57,30 +72,21 @@ const HomeScreen: React.FC = () => {
             <Text h2 style={{color: '#fff'}}>
               Covid-19
             </Text>
-            <View
-              style={{
-                flexDirection: 'row',
-                justifyContent: 'center',
-                alignItems: 'center',
-                borderRadius: 50,
-                backgroundColor: 'white',
-                padding: 10,
-              }}>
-              <Image
-                width={32}
-                height={32}
-                style={{width: 32, height: 32}}
-                resizeMode={'contain'}
-                source={{uri: 'https://www.countryflags.io/mn/shiny/64.png'}}
-              />
-              <Text
-                style={{
-                  marginLeft: 4,
-                  color: '#000',
-                }}>
-                MONGOLIA
-              </Text>
-            </View>
+            <TouchableWithoutFeedback
+              onPress={() => setPickerVisible(!pickerVisible)}>
+              <View style={styles.flagRow}>
+                <CountryPicker
+                  visible={pickerVisible}
+                  countryCode={country!.cca2}
+                  withFlag
+                  onSelect={handleCountrySelect}
+                />
+
+                <Text h4 style={{color: '#333'}}>
+                  {country?.name || ''}
+                </Text>
+              </View>
+            </TouchableWithoutFeedback>
           </View>
           <Stack size={'lg'} />
           <Text h4>Are you feeling sick?</Text>
@@ -151,7 +157,6 @@ const HomeScreen: React.FC = () => {
                 resizeMode="contain"
                 source={require('../../assets/images/remote-work-man.png')}
               />
-
               <Stack size={'sm'} />
               <Card.Title>Avoid close contact</Card.Title>
             </Card>
@@ -210,6 +215,13 @@ const styles = StyleSheet.create({
     flex: 1,
     flexDirection: 'row',
     justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  flagRow: {
+    backgroundColor: 'white',
+    padding: 10,
+    borderRadius: 30,
+    flexDirection: 'row',
     alignItems: 'center',
   },
   ctaRow: {

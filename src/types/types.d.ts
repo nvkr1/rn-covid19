@@ -28,3 +28,9 @@ type ChartData = {
     labels: string[],
     datasets: any[]
 }
+
+interface IDataCache<T> {
+    age: number; // age millis
+    savedAt: string; // cache saved at
+    data: T;
+}

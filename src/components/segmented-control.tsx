@@ -20,6 +20,7 @@ const SegmentedControl: React.FC<SegmentedControlProps> = (
       fontStyle={{color: '#FDFDFD'}}
       activeFontStyle={{color: 'black'}}
       selectedIndex={props.currentIndex}
+      tintColor={'#fff'}
       onChange={event => {
         handleChangeIndex(event.nativeEvent.selectedSegmentIndex);
       }}

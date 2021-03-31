@@ -8,7 +8,7 @@
  * @format
  */
 
-import React, {useState, useEffect} from 'react';
+import React, {useState, useEffect, useMemo, useLayoutEffect} from 'react';
 import {
   SafeAreaView,
   ScrollView,
@@ -20,20 +20,35 @@ import {
 } from 'react-native';
 
 import {NavigationContainer} from '@react-navigation/native';
-import axios from 'axios';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import {Country} from 'react-native-country-picker-modal';
 
-import Api from './src/api/Api';
+import CachedApi from './src/api/CachedApi';
 
 import CountryDataContext from './src/context/country-data-context';
 import WorldDataContext from './src/context/world-data-context';
 import MainScreen from './src/screens/main-screen';
 
+const defaultCountry: Country = {
+  callingCode: ['976'],
+  cca2: 'MN',
+  currency: ['MNT'],
+  flag: 'flag-mn',
+  name: 'Mongolia',
+  region: 'Asia',
+  subregion: 'Eastern Asia',
+};
 const App = () => {
   /* =====
     States
   ======*/
+  const [country, setCountry] = useState<Country>(defaultCountry);
   const [countryData, setCountryData] = useState<IStatsRecord[] | null>(null);
   const [worldData, setWorldData] = useState<IWorldData[] | null>(null);
+
+  /* =====
+    Cache
+  ======*/
 
   /* =====
     Utilities
@@ -41,25 +56,58 @@ const App = () => {
 
   // fetch world data
   const refreshWorldData = async (): Promise<void> => {
-    const data: IWorldData[] = await Api.fetchWorldData();
-    console.log(`wd ${data.length}`);
+    setWorldData(null);
+    const data:
+      | IWorldData[]
+      | null = await CachedApi.getInstance().fetchWorldData();
     setWorldData(data);
   };
 
   // fetch country data
-  const refreshCountryData = async (): Promise<void> => {
-    const data: IStatsRecord[] = await Api.fetchCountryData();
-    console.log(`cd ${data.length}`);
+  const refreshCountryData = async (country: Country): Promise<void> => {
+    setCountryData(null);
+    const data:
+      | IStatsRecord[]
+      | null = await CachedApi.getInstance().fetchCountryData(
+      country.name.toString().toLowerCase(),
+    );
     setCountryData(data);
   };
 
+  const refreshData = async () => {
+    refreshWorldData();
+    refreshCountryData(country);
+  };
+  // from cache or fetch from api
+  // cache data has a maximum age of 10 mins
+  const initData = async () => {
+    // no cache
+    refreshData();
+    return;
+  };
+
+  const initCountry = async () => {
+    const json = await AsyncStorage.getItem('country');
+    if (json) {
+      console.log('set country');
+      console.log(json);
+      const country: Country = JSON.parse(json);
+      setCountry(country);
+    }
+  };
   /* =====
     Side Effects
   ======*/
   // onMount
-  useEffect(() => {
-    refreshWorldData();
-    refreshCountryData();
+  useLayoutEffect(() => {
+    (async () => {
+      // clear local storage when open the app
+      await initCountry();
+      await AsyncStorage.clear();
+      // but keep the country cache
+      AsyncStorage.setItem('country', JSON.stringify(country));
+      initData();
+    })();
   }, []);
 
   return (
@@ -67,7 +115,11 @@ const App = () => {
       <WorldDataContext.Provider
         value={{data: worldData, refresh: refreshWorldData}}>
         <CountryDataContext.Provider
-          value={{data: countryData, refresh: refreshCountryData}}>
+          value={{
+            data: countryData,
+            country: country,
+            refresh: refreshCountryData,
+          }}>
           <NavigationContainer>
             <MainScreen />
           </NavigationContainer>

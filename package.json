@@ -10,16 +10,19 @@
     "lint": "eslint . --ext .js,.jsx,.ts,.tsx"
   },
   "dependencies": {
-    "@react-native-async-storage/async-storage": "react-native-community/async-storage",
+    "@react-native-async-storage/async-storage": "react-native-async-storage/async-storage",
     "@react-native-community/masked-view": "^0.1.10",
     "@react-native-segmented-control/segmented-control": "^2.3.0",
     "@react-navigation/bottom-tabs": "^5.11.8",
     "@react-navigation/native": "^5.9.3",
     "axios": "^0.21.1",
     "intl": "^1.2.5",
+    "numeral": "^2.0.6",
     "react": "17.0.1",
     "react-native": "0.64.0",
+    "react-native-cache": "^2.0.1",
     "react-native-chart-kit": "^6.11.0",
+    "react-native-country-picker-modal": "^2.0.0",
     "react-native-elements": "^3.3.2",
     "react-native-gesture-handler": "^1.10.3",
     "react-native-reanimated": "^2.0.1",
@@ -27,7 +30,8 @@
     "react-native-screens": "^2.18.1",
     "react-native-spacing-system": "^2.0.0-rc.0",
     "react-native-svg": "^12.1.0",
-    "react-native-vector-icons": "^8.1.0"
+    "react-native-vector-icons": "^8.1.0",
+    "react-number-format": "^4.5.3"
   },
   "devDependencies": {
     "@babel/core": "^7.12.9",

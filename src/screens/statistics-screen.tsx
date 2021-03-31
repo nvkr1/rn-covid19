@@ -9,8 +9,9 @@ import {
   Linking,
 } from 'react-native';
 import {Text, Card, ThemeProvider, Button, Header} from 'react-native-elements';
-import SegmentedControlTabs from '../components/segmented-control';
+import numeral from 'numeral';
 
+import SegmentedControlTabs from '../components/segmented-control';
 import TextTabs from '../components/text-tabs';
 import BarChart from '../components/bar-chart';
 import {Stack} from '../components/spacing';
@@ -35,6 +36,7 @@ const StatisticsScreen: React.FC = () => {
     Utilities
   ========= */
   // return stats difference between index and index-1 from records
+  // stats1 - stats2
   const diffRecords = (
     stats1: IStatsRecord | null,
     stats2: IStatsRecord | null,
@@ -77,11 +79,7 @@ const StatisticsScreen: React.FC = () => {
   const worldRecords = useMemo<IStatsRecord[] | undefined>(():
     | IStatsRecord[]
     | undefined => {
-    // sort
-    let worldContextSorted = worldContext.data?.sort((a, b) =>
-      a.Date < b.Date ? -1 : 1,
-    );
-    return worldContextSorted?.map((w: IWorldData, index) => {
+    return worldContext.data?.map((w: IWorldData, index) => {
       const stats: IStatsRecord = {
         ID: w.Date,
         Country: 'World',
@@ -118,7 +116,7 @@ const StatisticsScreen: React.FC = () => {
       default:
         return worldRecords;
     }
-  }, [areaIndex]);
+  }, [areaIndex, countryContext, worldRecords]);
 
   // my country or global
   const areas = useMemo<string[]>((): string[] => {
@@ -177,14 +175,15 @@ const StatisticsScreen: React.FC = () => {
         },
       ],
     };
-    const start: number = Math.max(records.length - 7, 0);
+    const start: number = Math.max(records.length - 6, 0);
     const end: number = records.length;
     for (let i = start; i < end; i++) {
       const record: IStatsRecord = records[i];
       const date = new Date(record.Date);
       const dateFormat: string = `${date.getMonth() + 1}.${date.getDate()}`;
       data.labels.push(dateFormat);
-      const count = record.Confirmed;
+      const diff = diffRecords(records[i], records[i - 1]);
+      const count = diff?.Confirmed || 0;
       data.datasets[0].data.push(count);
     }
     setChartData(data);
@@ -264,7 +263,9 @@ const StatisticsScreen: React.FC = () => {
                 style={styles.cardTitle}>
                 Affected
               </Card.Title>
-              <Text h2>{currentStats?.Confirmed ?? 0}</Text>
+              <Text h2 allowFontScaling numberOfLines={1} adjustsFontSizeToFit>
+                {numeral(currentStats?.Confirmed ?? 0).format(`0,0`)}
+              </Text>
             </Card>
             <Card containerStyle={{backgroundColor: '#FF5958'}}>
               <Card.Title
@@ -273,7 +274,9 @@ const StatisticsScreen: React.FC = () => {
                 style={styles.cardTitle}>
                 Death
               </Card.Title>
-              <Text h2>{currentStats?.Deaths ?? 0}</Text>
+              <Text h2 allowFontScaling numberOfLines={1} adjustsFontSizeToFit>
+                {numeral(currentStats?.Deaths ?? 0).format(`0,0`)}
+              </Text>
             </Card>
           </View>
           <View style={styles.cardRow}>
@@ -284,7 +287,9 @@ const StatisticsScreen: React.FC = () => {
                 style={styles.cardTitle}>
                 Recovered
               </Card.Title>
-              <Text h4>{currentStats?.Recovered ?? 0}</Text>
+              <Text h4 allowFontScaling numberOfLines={1} adjustsFontSizeToFit>
+                {numeral(currentStats?.Recovered ?? 0).format(`0,0`)}
+              </Text>
             </Card>
             <Card containerStyle={{backgroundColor: '#4BB6FF'}}>
               <Card.Title
@@ -293,10 +298,10 @@ const StatisticsScreen: React.FC = () => {
                 style={styles.cardTitle}>
                 Active
               </Card.Title>
-              <Text h4>
-                {currentStats?.Active == null || isNaN(currentStats?.Active)
+              <Text h4 allowFontScaling numberOfLines={1} adjustsFontSizeToFit>
+                {isNaN(currentStats?.Active || NaN) || currentStats!.Active! < 0
                   ? '?'
-                  : currentStats.Active}
+                  : numeral(currentStats?.Active ?? 0).format(`0,0`)}
               </Text>
             </Card>
             <Card containerStyle={{backgroundColor: '#905AFF'}}>
@@ -306,7 +311,9 @@ const StatisticsScreen: React.FC = () => {
                 style={styles.cardTitle}>
                 Serious
               </Card.Title>
-              <Text h4>?</Text>
+              <Text h4 allowFontScaling numberOfLines={1} adjustsFontSizeToFit>
+                ?
+              </Text>
             </Card>
           </View>
         </ThemeProvider>
@@ -318,22 +325,14 @@ const StatisticsScreen: React.FC = () => {
             flex: 1,
             padding: 30,
             margin: 0,
-            zIndex: 10,
             borderTopLeftRadius: 30,
             borderTopRightRadius: 30,
-            paddingTop: 30,
           }}>
           <Card.Title style={{textAlign: 'left'}} h4>
             Daily new cases
           </Card.Title>
           {chartData ? (
-            <BarChart
-              yAxisLabel="$"
-              yAxisSuffix="$"
-              height={sh * 0.4}
-              width={sw - 60}
-              data={chartData}
-            />
+            <BarChart height={sh * 0.4} width={sw - 60} data={chartData} />
           ) : (
             <></>
           )}
@@ -375,8 +374,5 @@ const styles = StyleSheet.create({
   footerContainer: {
     flex: 1,
     height: sh * 0.55,
-    flexShrink: 0,
-    alignSelf: 'stretch',
-    flexGrow: 1,
   },
 });
