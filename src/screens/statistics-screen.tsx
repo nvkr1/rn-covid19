@@ -1,4 +1,4 @@
-import React, {useEffect, useState, useMemo} from 'react';
+import React, {useEffect, useState, useMemo, useContext} from 'react';
 import {
   View,
   StyleSheet,
@@ -12,10 +12,10 @@ import {Text, Card, ThemeProvider, Button, Header} from 'react-native-elements';
 import SegmentedControlTabs from '../components/segmented-control';
 
 import TextTabs from '../components/text-tabs';
-import StatsCard from '../components/stats-card';
 import BarChart from '../components/bar-chart';
 import {Stack} from '../components/spacing';
-import axios from 'axios';
+import WorldDataContext from '../context/world-data-context';
+import CountryDataContext from '../context/country-data-context';
 
 const sw = Dimensions.get('window').width;
 const sh = Dimensions.get('window').height;
@@ -28,11 +28,8 @@ const StatisticsScreen: React.FC = () => {
   const [periodIndex, setPeriodIndex] = useState<number>(0);
   const [areaIndex, setAreaIndex] = useState<number>(0);
   const [chartData, setChartData] = useState<ChartData | null>();
-  const [isCountryLoading, setIsCountryLoading] = useState<boolean>(false);
-  const [records, setRecords] = useState<IStatsRecord[] | null>();
-  const [countryRecords, setCountryRecords] = useState<IStatsRecord[] | null>();
-  const [isWorldLoading, setIsWorldLoading] = useState<boolean>(false);
-  const [worldData, setWorldData] = useState<IWorldData[] | null>();
+  const worldContext = useContext(WorldDataContext);
+  const countryContext = useContext(CountryDataContext);
 
   /* =======
     Utilities
@@ -73,58 +70,18 @@ const StatisticsScreen: React.FC = () => {
     return diffRecords(stats1, stats2);
   };
 
-  // fetch world data
-  const fetchWorldData = async (): Promise<IWorldData[]> => {
-    const end = new Date();
-    let start = new Date();
-    start.setDate(start.getDate() - 7);
-    const response = await axios.get(
-      `https://api.covid19api.com/world?from=${start}&to=${end}`,
-    );
-    const data: IWorldData[] = response.data;
-    return data || [];
-  };
-
-  // fetch country data
-  const fetchCountryData = async (): Promise<IStatsRecord[]> => {
-    const response = await axios.get(
-      'https://api.covid19api.com/live/country/mongolia/status/confirmed',
-    );
-    const records: IStatsRecord[] = response.data;
-    return records || [];
-  };
   /* =========
     Caches
   ========== */
-  // my country or global
-  const areas = useMemo((): string[] => {
-    return ['My country', 'Global'];
-  }, []);
 
-  const periods = useMemo((): string[] => {
-    return ['Today', 'Yesterday', 'Total'];
-  }, []);
-
-  const currentStats = useMemo((): IStatsRecord | null => {
-    switch (periodIndex) {
-      case 0:
-        // today
-        return diffStatsAtIndex((records?.length || 0) - 1, records);
-      case 1:
-        // yesterday
-        return diffStatsAtIndex((records?.length || 0) - 2, records);
-        break;
-      case 2:
-        // total
-        return records![(records?.length || 0) - 1];
-    }
-    return null;
-  }, [records, periodIndex]);
-
-  const worldRecords = useMemo((): IStatsRecord[] | undefined => {
+  const worldRecords = useMemo<IStatsRecord[] | undefined>(():
+    | IStatsRecord[]
+    | undefined => {
     // sort
-    let worldDataSorted = worldData?.sort((a, b) => (a.Date < b.Date ? -1 : 1));
-    return worldDataSorted?.map((w: IWorldData, index) => {
+    let worldContextSorted = worldContext.data?.sort((a, b) =>
+      a.Date < b.Date ? -1 : 1,
+    );
+    return worldContextSorted?.map((w: IWorldData, index) => {
       const stats: IStatsRecord = {
         ID: w.Date,
         Country: 'World',
@@ -141,7 +98,52 @@ const StatisticsScreen: React.FC = () => {
       };
       return stats;
     });
-  }, [worldData]);
+  }, [worldContext.data]);
+
+  // data loading
+  const isCountryLoading = useMemo<boolean>(() => {
+    console.log(`is cd ${countryContext.data?.length}`);
+    return countryContext.data == null;
+  }, [countryContext.data]);
+  const isWorldLoading = useMemo<boolean>(() => {
+    console.log(`is wd ${worldContext.data?.length}`);
+    return worldContext.data == null;
+  }, [worldContext.data]);
+
+  // current records
+  const records = useMemo<IStatsRecord[] | null | undefined>(() => {
+    switch (areaIndex) {
+      case 0:
+        return countryContext.data;
+      default:
+        return worldRecords;
+    }
+  }, [areaIndex]);
+
+  // my country or global
+  const areas = useMemo<string[]>((): string[] => {
+    return ['My country', 'Global'];
+  }, []);
+
+  const periods = useMemo<string[]>((): string[] => {
+    return ['Today', 'Yesterday', 'Total'];
+  }, []);
+
+  const currentStats = useMemo<IStatsRecord | null>((): IStatsRecord | null => {
+    switch (periodIndex) {
+      case 0:
+        // today
+        return diffStatsAtIndex((records?.length || 0) - 1, records);
+      case 1:
+        // yesterday
+        return diffStatsAtIndex((records?.length || 0) - 2, records);
+        break;
+      case 2:
+        // total
+        return records![(records?.length || 0) - 1];
+    }
+    return null;
+  }, [records, periodIndex]);
 
   /* ===========
     Event handlers
@@ -150,16 +152,6 @@ const StatisticsScreen: React.FC = () => {
   const handleAreaChanged = async (index: number): Promise<void> => {
     console.log('handle area change');
     setAreaIndex(index);
-    switch (index) {
-      case 0:
-        // my country
-        setRecords(countryRecords);
-        break;
-      case 1:
-        // world
-        setRecords(worldRecords);
-        break;
-    }
   };
 
   // handle period change
@@ -171,24 +163,6 @@ const StatisticsScreen: React.FC = () => {
   /* ========== 
     Side Effects
   ========== */
-
-  // onMount
-  useEffect(() => {
-    (async () => {
-      setIsCountryLoading(true);
-      const records: IStatsRecord[] = await fetchCountryData();
-      setCountryRecords(records);
-      setRecords(records);
-      setIsCountryLoading(false);
-    })();
-
-    (async () => {
-      setIsWorldLoading(true);
-      const worldData: IWorldData[] = await fetchWorldData();
-      setWorldData(worldData);
-      setIsWorldLoading(false);
-    })();
-  }, []);
 
   // chart data
   useEffect(() => {

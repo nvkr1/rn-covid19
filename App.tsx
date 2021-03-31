@@ -20,26 +20,54 @@ import {
 } from 'react-native';
 
 import {NavigationContainer} from '@react-navigation/native';
+import axios from 'axios';
+
+import Api from './src/api/Api';
 
 import CountryDataContext from './src/context/country-data-context';
 import WorldDataContext from './src/context/world-data-context';
 import MainScreen from './src/screens/main-screen';
 
 const App = () => {
-  const [isLoading, setIsLoading] = useState(false);
+  /* =====
+    States
+  ======*/
+  const [countryData, setCountryData] = useState<IStatsRecord[] | null>(null);
+  const [worldData, setWorldData] = useState<IWorldData[] | null>(null);
 
-  if (isLoading) {
-    return (
-      <View style={{flex: 1, justifyContent: 'center', alignItems: 'center'}}>
-        <Text>loading...</Text>
-      </View>
-    );
-  }
+  /* =====
+    Utilities
+  ======*/
+
+  // fetch world data
+  const refreshWorldData = async (): Promise<void> => {
+    const data: IWorldData[] = await Api.fetchWorldData();
+    console.log(`wd ${data.length}`);
+    setWorldData(data);
+  };
+
+  // fetch country data
+  const refreshCountryData = async (): Promise<void> => {
+    const data: IStatsRecord[] = await Api.fetchCountryData();
+    console.log(`cd ${data.length}`);
+    setCountryData(data);
+  };
+
+  /* =====
+    Side Effects
+  ======*/
+  // onMount
+  useEffect(() => {
+    refreshWorldData();
+    refreshCountryData();
+  }, []);
 
   return (
     <>
-      <WorldDataContext.Provider value={{data: []}}>
-        <CountryDataContext.Provider value={{data: []}}>
+      <WorldDataContext.Provider
+        value={{data: worldData, refresh: refreshWorldData}}>
+        <CountryDataContext.Provider
+          value={{data: countryData, refresh: refreshCountryData}}>
           <NavigationContainer>
             <MainScreen />
           </NavigationContainer>

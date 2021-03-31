@@ -1,9 +1,10 @@
 import React from 'react';
 
 type CountryDataContextType = {
-    data: IStatsRecord[]
+    data: IStatsRecord[] | null,
+    refresh: () => Promise<void>;
 }
 
-const CountryDataContext = React.createContext<CountryDataContextType>({data: []});
+const CountryDataContext = React.createContext<CountryDataContextType>({data: [], refresh: async () => {}});
 
 export default CountryDataContext;
